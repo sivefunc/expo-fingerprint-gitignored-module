@@ -42,3 +42,6 @@ yarn-error.*
 
 # copied by plugins/withSharedAttributes.js on each prebuild
 /modules/my-module/ios/SharedAttributes.swift
+
+# outputs of scripts/compare-prebuild.sh
+build-logs/
