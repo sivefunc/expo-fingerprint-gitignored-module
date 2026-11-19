@@ -52,6 +52,9 @@ The Android fingerprint does not change, because the plugin writes only into `io
   into `node_modules/@expo/fingerprint`:
   - `0.21.10`: the published file.
   - `proposed`: the proposed fix. Files that `.gitignore` ignores in a local module are not hashed.
+- `scripts/simulate-eas-upload.sh` copies the project the way `eas build` uploads it (`git clone --no-checkout`, then
+  the working tree without the gitignored files), runs prebuild in the copy, and prints its iOS fingerprint. Then it
+  prints the iOS fingerprint of this checkout before prebuild. These are the two values that EAS Build compares.
 - `scripts/diff-sources.js <before.json> <after.json>` prints the sources and files whose hash changed between two
   `fingerprint:generate --debug` outputs.
 
@@ -63,5 +66,12 @@ The Android fingerprint does not change, because the plugin writes only into `io
 |---|---|---|
 | `0.21.10` | `55e5bbc1…` vs `5f24ed76…`: MISMATCH | `5aa793cd…` vs `5aa793cd…`: MATCH |
 | `proposed` | `55e5bbc1…` vs `55e5bbc1…`: MATCH | `5aa793cd…` vs `5aa793cd…`: MATCH |
+
+`scripts/simulate-eas-upload.sh`:
+
+| `Sourcer.js` | Upload copy, after prebuild | This checkout, before prebuild |
+|---|---|---|
+| `0.21.10` | `5f24ed76…` | `55e5bbc1…` |
+| `proposed` | `55e5bbc1…` | `55e5bbc1…` |
 
 With `proposed`, a change to a tracked file of the module (`MyModule.swift`) still changes the iOS fingerprint.
