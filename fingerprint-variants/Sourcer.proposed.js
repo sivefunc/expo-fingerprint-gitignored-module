@@ -4,12 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getHashSourcesAsync = getHashSourcesAsync;
-const spawn_async_1 = __importDefault(require("@expo/spawn-async"));
 const chalk_1 = __importDefault(require("chalk"));
 const minimatch_1 = require("minimatch");
 const semver_1 = __importDefault(require("semver"));
 const ExpoConfig_1 = require("../ExpoConfig");
 const ExpoResolver_1 = require("../ExpoResolver");
+const ProjectWorkflow_1 = require("../ProjectWorkflow");
 const Path_1 = require("../utils/Path");
 const Profile_1 = require("../utils/Profile");
 const Bare_1 = require("./Bare");
@@ -61,12 +61,6 @@ async function getHashSourcesAsync(projectRoot, options) {
     await (0, Profile_1.profile)(options, ignoreGitIgnoredLocalModuleFilesAsync)(projectRoot, sources, options);
     return sources;
 }
-/**
- * Exclude the files that git ignores from the autolinked directories outside `node_modules`.
- * These are local modules, e.g. `modules/my-module/ios`. A config plugin can write an ignored file
- * into a local module during prebuild. Without this, the fingerprint before prebuild (local
- * machine, CI) and after prebuild (EAS Build) is different.
- */
 async function ignoreGitIgnoredLocalModuleFilesAsync(projectRoot, sources, options) {
     const localModuleDirs = sources.flatMap((source) => source.type === 'dir' &&
         source.reasons.some((reason) => reason.startsWith('expoAutolinking') || reason.startsWith('rncoreAutolinking')) &&
@@ -76,26 +70,15 @@ async function ignoreGitIgnoredLocalModuleFilesAsync(projectRoot, sources, optio
     if (localModuleDirs.length === 0) {
         return;
     }
-    let stdout;
+    let ignoredPaths;
     try {
-        // Read only the `.gitignore` files. `--exclude-standard` also reads `.git/info/exclude` and
-        // `core.excludesFile`, which are different on each machine.
-        ({ stdout } = await (0, spawn_async_1.default)('git', [
-            'ls-files',
-            '--others',
-            '--ignored',
-            '--exclude-per-directory=.gitignore',
-            '--directory',
-            '-z',
-            '--',
-            ...localModuleDirs,
-        ], { cwd: projectRoot }));
+        const vcsClient = await (0, ProjectWorkflow_1.getVCSClientAsync)(projectRoot);
+        ignoredPaths = await vcsClient.getIgnoredPathsAsync(localModuleDirs);
     }
     catch (e) {
         debug(chalk_1.default.red(`Error listing the gitignored files in local modules.\n${e}`));
         return;
     }
-    const ignoredPaths = stdout.split('\0').filter(Boolean);
     for (const ignoredPath of ignoredPaths) {
         debug(`Ignoring gitignored path in a local module - ${chalk_1.default.dim(ignoredPath)}`);
         (0, Path_1.appendIgnorePath)(options.ignorePathMatchObjects, ignoredPath.endsWith('/') ? `${(0, minimatch_1.escape)(ignoredPath.slice(0, -1))}/**/*` : (0, minimatch_1.escape)(ignoredPath));
